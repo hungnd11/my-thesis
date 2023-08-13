@@ -11,5 +11,7 @@
     "initializer_list": "cpp",
     "ranges": "cpp",
     "*.tcc": "cpp"
-  }
+  },
+  "python.languageServer": "Pylance",
+  "notebook.formatOnSave.enabled": false
 }
