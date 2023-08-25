@@ -10,3 +10,5 @@
 
 # Temporary output
 output
+
+**/__pycache__/*

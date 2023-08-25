@@ -72,8 +72,9 @@ def read_data_file(data_filename):
             ssid = line_data[2]
             bssid = line_data[3]
             rssi = line_data[4]
+            freq = line_data[5]
             lastseen_ts = line_data[6]
-            wifi_data = [sys_ts, ssid, bssid, rssi, lastseen_ts]
+            wifi_data = [sys_ts, ssid, bssid, rssi, freq, lastseen_ts]
             wifi.append(wifi_data)
             continue
 

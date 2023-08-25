@@ -13,5 +13,8 @@
     "*.tcc": "cpp"
   },
   "python.languageServer": "Pylance",
-  "notebook.formatOnSave.enabled": false
+  "notebook.formatOnSave.enabled": false,
+  "python.autoComplete.extraPaths": [
+    "/home/hungnd/Workspace/HUST_Masters/thesis/venv/bin/python"
+  ],
 }
