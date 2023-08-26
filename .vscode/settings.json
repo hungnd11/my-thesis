@@ -17,4 +17,10 @@
   "python.autoComplete.extraPaths": [
     "/home/hungnd/Workspace/HUST_Masters/thesis/venv/bin/python"
   ],
+  "python.analysis.extraPaths": [
+    "/home/hungnd/Workspace/HUST_Masters/thesis/venv/bin/python"
+  ],
+  "editor.formatOnSave": true,
+  "python.formatting.provider": "yapf",
+  "python.analysis.typeCheckingMode": "basic",
 }
