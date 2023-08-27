@@ -150,3 +150,22 @@ def extract_floor_map_geometries(floor_map, floor_info, transform=None):
       width_meter,
       height_meter,
   )
+
+
+def transform_rotation(rotation_angle):
+
+  def impl(coords):
+    r_xs, r_ys = rotate(coords[:, 0], coords[:, 1], rotation_angle)
+    return np.vstack((r_xs, r_ys)).T
+
+  return impl
+
+
+def rotate(xs, ys, a):
+  xs = np.atleast_1d(xs)
+  ys = np.atleast_1d(ys)
+
+  r_xs = xs * np.cos(a) + ys * np.sin(a)
+  r_ys = -1 * xs * np.sin(a) + ys * np.cos(a)
+
+  return r_xs, r_ys
