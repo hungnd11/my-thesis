@@ -51,11 +51,13 @@ def create_fingerprint_vector(group_data: pd.DataFrame,
   return v
 
 
-def extract_fingerprint_df(fingerprint_files,
+def extract_fingerprint_df(fingerprint_files: list[str],
                            wifi_band=(2400, 5000),
                            min_samples: int = 0,
                            not_seen_rssi: float = -1000,
-                           max_scan_time_gap_ms: float = 2000):
+                           max_scan_time_gap_ms: float = 2000,
+                           tqdm_enabled: bool = False,
+                           verbose: bool = False):
   if isinstance(wifi_band, int):
     wifi_band = {wifi_band}
 
@@ -73,18 +75,23 @@ def extract_fingerprint_df(fingerprint_files,
 
   bssid_set = extract_bssid_set(wifi_fingerprint_fb_df_list,
                                 min_times=min_samples)
-  print(
-      f"The number of BSSIDs with at least {min_samples} samples: {len(bssid_set)}"
-  )
+  if verbose:
+    print(
+        f"The number of BSSIDs with at least {min_samples} samples: {len(bssid_set)}"
+    )
   bssid_vector = np.array(list(bssid_set))
 
   fingerprint_tuples = []
-  for df in tqdm(wifi_fingerprint_fb_df_list):
+  iterator = wifi_fingerprint_fb_df_list
+  if tqdm_enabled:
+    iterator = tqdm(iterator)
+  for df in iterator:
     for (sys_ts, x, y), group_data in df.groupby(["sys_ts", "x", "y"]):
       fingerprint_vector = create_fingerprint_vector(
           group_data, bssid_vector, not_seen_rssi=not_seen_rssi)
       fingerprint_tuples.append((x, y, fingerprint_vector))
 
-  print(f"The number of fingerprints: {len(fingerprint_tuples)}")
+  if verbose:
+    print(f"The number of fingerprints: {len(fingerprint_tuples)}")
 
   return pd.DataFrame(fingerprint_tuples, columns=["x", "y", "v"]), bssid_vector
