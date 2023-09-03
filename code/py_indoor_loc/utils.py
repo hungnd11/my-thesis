@@ -3,7 +3,10 @@ Utilities
 """
 
 import numpy as np
+import pandas as pd
+
 from typing import Tuple
+from pathlib import Path
 
 
 def rotate(xs: np.ndarray, ys: np.ndarray,
@@ -29,3 +32,10 @@ def rotate(xs: np.ndarray, ys: np.ndarray,
   r_ys = -1 * xs * np.sin(a) + ys * np.cos(a)
 
   return r_xs, r_ys
+
+
+def inverse_rotate(xs: np.ndarray, ys: np.ndarray,
+                   a: float) -> Tuple[np.ndarray, np.ndarray]:
+  ir_xs = xs * np.cos(a) - ys * np.sin(a)
+  ir_ys = xs * np.sin(a) + ys * np.cos(a)
+  return ir_xs, ir_ys

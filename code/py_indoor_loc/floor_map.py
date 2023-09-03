@@ -2,6 +2,7 @@ import json
 import numpy as np
 
 from shapely.geometry.polygon import Polygon
+from py_indoor_loc.utils import rotate
 
 
 def read_floor_data(floor_dir_path: str):
@@ -67,6 +68,23 @@ def scale(coords,
 
   coords[:, 0] = (coords[:, 0] - x_min) / (x_max - x_min) * width_meter
   coords[:, 1] = (coords[:, 1] - y_min) / (y_max - y_min) * height_meter
+
+  return coords
+
+
+def inverse_scale(coords,
+                  x_min,
+                  y_min,
+                  x_max,
+                  y_max,
+                  width_meter,
+                  height_meter,
+                  inplace=False):
+  if not inplace:
+    coords = coords.copy()
+
+  coords[:, 0] = coords[:, 0] * (x_max - x_min) / width_meter + x_min
+  coords[:, 1] = coords[:, 1] * (y_max - y_min) / height_meter + y_min
 
   return coords
 
@@ -152,20 +170,12 @@ def extract_floor_map_geometries(floor_map, floor_info, transform=None):
   )
 
 
-def transform_rotation(rotation_angle):
+def transform_rotation(rotation_angle_degrees):
+
+  rotation_angle_radians = np.radians(rotation_angle_degrees)
 
   def impl(coords):
-    r_xs, r_ys = rotate(coords[:, 0], coords[:, 1], rotation_angle)
+    r_xs, r_ys = rotate(coords[:, 0], coords[:, 1], rotation_angle_radians)
     return np.vstack((r_xs, r_ys)).T
 
   return impl
-
-
-def rotate(xs, ys, a):
-  xs = np.atleast_1d(xs)
-  ys = np.atleast_1d(ys)
-
-  r_xs = xs * np.cos(a) + ys * np.sin(a)
-  r_ys = -1 * xs * np.sin(a) + ys * np.cos(a)
-
-  return r_xs, r_ys

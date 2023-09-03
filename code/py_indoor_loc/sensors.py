@@ -163,6 +163,7 @@ def estimate_acceleration_heading(
       result_heading[i] = result_heading[i - 1]
       result_acce[i, :] = result_acce[i - 1, :]
 
+  result_heading = -result_heading % 360
   return result_acce, result_heading
 
 
