@@ -3,6 +3,7 @@ Ploting Utilities
 """
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 from shapely import Polygon
 from typing import Any
@@ -59,5 +60,40 @@ def plot_floor_map(floor_polygons: list[Polygon],
   ax.set_xlabel("x")
   ax.set_ylabel("y")
   ax.set_title("Floor map")
+
+  return ax
+
+
+def plot_waypoint_location(waypoint_location: np.ndarray,
+                           ax: plt.Axes | None = None,
+                           plot_kwargs: dict | None = None) -> plt.Axes:
+
+  if ax is None:
+    _, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+  if plot_kwargs is None:
+    plot_kwargs = dict()
+
+  ax.plot(waypoint_location[:, 0],
+          waypoint_location[:, 1],
+          marker="o",
+          markersize=4,
+          color="red",
+          alpha=0.5,
+          **plot_kwargs)
+  ax.plot(waypoint_location[:1, 0],
+          waypoint_location[:1, 1],
+          marker="o",
+          markersize=4,
+          color="green",
+          alpha=0.9,
+          label="start")
+  ax.plot(waypoint_location[-1:, 0],
+          waypoint_location[-1:, 1],
+          marker="o",
+          markersize=4,
+          color="black",
+          alpha=0.9,
+          label="end")
 
   return ax

@@ -23,4 +23,5 @@
   "editor.formatOnSave": true,
   "python.formatting.provider": "yapf",
   "python.analysis.typeCheckingMode": "basic",
+  "cSpell.words": ["markersize"]
 }
