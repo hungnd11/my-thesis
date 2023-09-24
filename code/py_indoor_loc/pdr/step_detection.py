@@ -23,8 +23,7 @@ def compute_local_acc_variance(acce: np.ndarray, window_size: int = 15):
   for i in range(n):
     start_idx = max(0, i - window_size)
     end_idx = min(n, i + window_size + 1)
-    m = np.mean(acce[start_idx:end_idx])
-    variance[i] = np.mean(np.square(acce[start_idx:end_idx] - m))
+    variance[i] = np.var(acce[start_idx:end_idx])
 
   return np.sqrt(variance)
 
@@ -35,8 +34,14 @@ def compute_step_positions(acce_var: np.ndarray,
                            window_size: int = 15):
   n = len(acce_var)
   steps = np.array([False] * n)
-  swing = (acce_var > swing_threshold) * swing_threshold
-  stance = (~(acce_var < stance_threshold)) * stance_threshold
+
+  # swing[i] = T1 if var > T1, 0 otherwise
+  swing = np.zeros(n, dtype=np.float32)
+  swing[acce_var > swing_threshold] = swing_threshold
+
+  # stance[i] = T2 if var < T2, 0 otherwise
+  stance = np.zeros(n, dtype=np.float32)
+  stance[acce_var < stance_threshold] = stance_threshold
 
   for i in range(1, n):
     if (swing[i - 1] < swing[i]) and np.max(
