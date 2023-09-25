@@ -129,7 +129,7 @@ def get_orientation(R: np.ndarray, values: np.ndarray) -> np.ndarray:
   return values
 
 
-def estimate_acceleration_heading(
+def compute_earth_acce_heading(
     acce: np.ndarray, magn: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
   """
   Estimating acceleration and heading with respect to the earth coordinate system.
