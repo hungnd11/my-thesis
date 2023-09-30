@@ -9,7 +9,7 @@ import numpy as np
 
 from py_indoor_loc.model import PathDataCollection
 from py_indoor_loc.lang import override
-from py_indoor_loc.sensors import compute_earth_acce_heading
+from py_indoor_loc.sensors import compute_earth_acce_heading, compute_earth_acce_heading_ahrs
 from py_indoor_loc.pdr.step_detection import AbcSDModel
 from scipy import signal
 
@@ -19,6 +19,11 @@ class AbcSLModel(abc.ABC):
   def __init__(self) -> None:
     self._logger = logging.getLogger(type(self).__name__)
 
+  @abc.abstractmethod
+  def returns_at_step(self) -> bool:
+    raise NotImplementedError()
+
+  @abc.abstractmethod
   def predict(self, path_data_collection: PathDataCollection) -> np.ndarray:
     raise NotImplementedError()
 
@@ -33,7 +38,8 @@ class WeinbergSLModel(AbcSLModel):
                filter_order=4,
                fs=50,
                K: float = 0.364,
-               window_size: int = 15) -> None:
+               window_size: int = 15,
+               use_ahrs: bool = True) -> None:
     super().__init__()
     self._lp_params = {
         "cutoff_frequency": cutoff_frequency,
@@ -42,11 +48,20 @@ class WeinbergSLModel(AbcSLModel):
     }
     self._K = K
     self._window_size = window_size
+    self._use_ahrs = use_ahrs
+
+  @override
+  def returns_at_step(self) -> bool:
+    return False
 
   @override
   def predict(self, path_data_collection: PathDataCollection) -> np.ndarray:
-    earth_acce, earth_heading = compute_earth_acce_heading(
-        path_data_collection.acce, path_data_collection.magn)
+    if self._use_ahrs:
+      earth_acce, _ = compute_earth_acce_heading_ahrs(path_data_collection.acce,
+                                                      path_data_collection.ahrs)
+    else:
+      earth_acce, _ = compute_earth_acce_heading(path_data_collection.acce,
+                                                 path_data_collection.magn)
     acce_magnitude = np.linalg.norm(earth_acce, axis=1)
     n = len(acce_magnitude)
     f_acce_magnitude = filter_lp(acce_magnitude, **self._lp_params)
@@ -68,28 +83,46 @@ class ZUPTSLModel(AbcSLModel):
   def __init__(self,
                sd_model: AbcSDModel,
                fs: int = 50,
-               window_size: int = 8) -> None:
+               window_size: int = 8,
+               use_ahrs: bool = True) -> None:
     super().__init__()
     self._sd_model = sd_model
     self._fs = fs
     self._window_size = window_size
+    self._use_ahrs = use_ahrs
+
+  @override
+  def returns_at_step(self) -> bool:
+    return True
+
+  @property
+  def step_detection_model(self) -> AbcSDModel:
+    return self._sd_model
 
   @override
   def predict(self, path_data_collection: PathDataCollection) -> np.ndarray:
-    # TODO: Using quatenion
-    acce, _ = compute_earth_acce_heading(path_data_collection.acce,
-                                         path_data_collection.magn)
-    vx = integrate(acce[:, 0], fs=self._fs)
-    vy = integrate(acce[:, 1], fs=self._fs)
-    vz = integrate(acce[:, 2], fs=self._fs)
+    if self._use_ahrs:
+      earth_acce, _ = compute_earth_acce_heading_ahrs(path_data_collection.acce,
+                                                      path_data_collection.ahrs)
+    else:
+      earth_acce, _ = compute_earth_acce_heading(path_data_collection.acce,
+                                                 path_data_collection.magn)
+
+    step_mask = self._sd_model.predict(path_data_collection)
+    step_indices = np.where(step_mask)[0]
+
+    if len(step_indices) == 0:
+      return np.array([], dtype=np.float64)
+
+    n = len(earth_acce)
+
+    vx = integrate(earth_acce[:, 0], fs=self._fs)
+    vy = integrate(earth_acce[:, 1], fs=self._fs)
+    vz = integrate(earth_acce[:, 2], fs=self._fs)
 
     cvx = np.zeros_like(vx)
     cvy = np.zeros_like(vy)
     cvz = np.zeros_like(vz)
-
-    step_mask = self._sd_model.predict(path_data_collection)
-    step_indices = np.where(step_mask)[0]
-    n = len(acce)
 
     prev_ik = 0
     prev_mu = (0, 0, 0)
@@ -126,6 +159,24 @@ class ZUPTSLModel(AbcSLModel):
     sl = np.sqrt([pkn * pkn + pke * pke for (pkn, pke, _) in delta_pk])
 
     return sl
+
+
+class RandomSLModel(AbcSLModel):
+
+  def __init__(self, base_sl: float = 1., noise_pct: float = 0.15) -> None:
+    super().__init__()
+    self._base_sl = base_sl
+    self._noise_pct = noise_pct
+
+  @override
+  def returns_at_step(self) -> bool:
+    return False
+
+  @override
+  def predict(self, path_data_collection: PathDataCollection) -> np.ndarray:
+    n = len(path_data_collection.acce)
+    noise = np.random.normal(loc=0, scale=self._noise_pct, size=n)
+    return self._base_sl * (1 + noise)
 
 
 def filter_lp(acce_magnitude: np.ndarray,

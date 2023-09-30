@@ -99,6 +99,82 @@ def get_rotation_matrix(gravity: np.ndarray,
   return True
 
 
+def get_rotation_matrix_from_vector(rotation_vector: np.ndarray,
+                                    R: np.ndarray) -> bool:
+  """
+  Compute rotation metric given rotation vector (ahrs)
+
+  Args:
+    rotation_vector: the rotation vector acquired from sensors
+    R: the result rotation matrix, which is a (9, 1) vector or (16, 1) vector.
+  
+  Returns:
+    True if the computation was successful, False otherwise.
+  
+  Refs:
+    https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/hardware/SensorManager.java#1655
+  """
+
+  assert len(rotation_vector) == 3
+
+  q1 = rotation_vector[0]
+  q2 = rotation_vector[1]
+  q3 = rotation_vector[2]
+
+  if rotation_vector.size >= 4:
+    q0 = rotation_vector[3]
+  else:
+    q0 = 1 - q1 * q1 - q2 * q2 - q3 * q3
+    if q0 > 0:
+      q0 = np.sqrt(q0)
+    else:
+      q0 = 0
+
+  sq_q1 = 2 * q1 * q1
+  sq_q2 = 2 * q2 * q2
+  sq_q3 = 2 * q3 * q3
+  q1_q2 = 2 * q1 * q2
+  q3_q0 = 2 * q3 * q0
+  q1_q3 = 2 * q1 * q3
+  q2_q0 = 2 * q2 * q0
+  q2_q3 = 2 * q2 * q3
+  q1_q0 = 2 * q1 * q0
+
+  if R.size == 9:
+    R[0] = 1 - sq_q2 - sq_q3
+    R[1] = q1_q2 - q3_q0
+    R[2] = q1_q3 + q2_q0
+
+    R[3] = q1_q2 + q3_q0
+    R[4] = 1 - sq_q1 - sq_q3
+    R[5] = q2_q3 - q1_q0
+
+    R[6] = q1_q3 - q2_q0
+    R[7] = q2_q3 + q1_q0
+    R[8] = 1 - sq_q1 - sq_q2
+
+  elif R.size == 16:
+    R[0] = 1 - sq_q2 - sq_q3
+    R[1] = q1_q2 - q3_q0
+    R[2] = q1_q3 + q2_q0
+    R[3] = 0.0
+
+    R[4] = q1_q2 + q3_q0
+    R[5] = 1 - sq_q1 - sq_q3
+    R[6] = q2_q3 - q1_q0
+    R[7] = 0.0
+
+    R[8] = q1_q3 - q2_q0
+    R[9] = q2_q3 + q1_q0
+    R[10] = 1 - sq_q1 - sq_q2
+    R[11] = 0.0
+
+    R[12] = R[13] = R[14] = 0.0
+    R[15] = 1.0
+
+  return True
+
+
 def get_orientation(R: np.ndarray, values: np.ndarray) -> np.ndarray:
   """
   Compute orientation from rotation matrix.
@@ -129,6 +205,47 @@ def get_orientation(R: np.ndarray, values: np.ndarray) -> np.ndarray:
   return values
 
 
+def compute_earth_acce_heading_ahrs(
+    sensor_acce: np.ndarray,
+    sensor_ahrs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+  """
+  Compute acceleration with respect to earth coordinate system.
+
+  Args:
+    sensor_acce: a np.ndarray represents the time-series acceleration readings from mobile's sensor
+    sensor_ahrs: a np.ndarray represenst the time-series AHRS from mobile's sensor
+
+  Returns:
+    A tuple of result acceleration and heading values  
+  """
+
+  n = len(sensor_acce)
+
+  result_heading = np.zeros(n, dtype=np.float32)
+  result_acce = np.zeros((n, 3), dtype=np.float32)
+
+  R = np.zeros(9, dtype=np.float64)
+  orientation = np.zeros(3, dtype=np.float64)
+
+  for i in range(n):
+    result = get_rotation_matrix_from_vector(sensor_ahrs[i, 1:], R)
+
+    if result:
+      _ = get_orientation(R, orientation)
+      result_heading[i] = np.degrees(orientation[0])
+
+      inv_R = np.linalg.inv(R.reshape(3, 3))
+      result_acce[i, :] = np.matmul(inv_R, sensor_acce[i, 1:])
+    else:
+      result_heading[i] = result_heading[i - 1]
+      result_acce[i, :] = result_acce[i - 1, :]
+
+  result_heading = -result_heading % 360
+  # TODO: Adding timestamp to headings
+
+  return result_acce, result_heading
+
+
 def compute_earth_acce_heading(
     acce: np.ndarray, magn: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
   """
@@ -139,7 +256,7 @@ def compute_earth_acce_heading(
     magn: a np.ndarray represents the time-series magnetic field readings
   
   Returns:
-    a tuple of result heading and acceleration values
+    A tuple of result acceleration and heading values
   """
   assert len(acce) == len(magn)
 
@@ -164,6 +281,7 @@ def compute_earth_acce_heading(
       result_acce[i, :] = result_acce[i - 1, :]
 
   result_heading = -result_heading % 360
+  # TODO: Adding timestamp to headings
   return result_acce, result_heading
 
 
