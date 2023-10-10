@@ -151,20 +151,34 @@ def init_apf(
     search_grid: SearchGrid,
     placement_offset_center: float,
     placement_offset_loc: float = 10.,
-    n_particles: int = 250000,
+    n_particles: int = 10000,
     stride_length_range: tuple[float, float] = (0.5, 1.2),
+    initial_location_center: tuple[float, float] | None = None,
+    initial_location_radius: float = 10.0,
 ) -> np.ndarray:
-  n_search_grid_points = search_grid.n_points
+
+  # If we know the distribution of the initial location
+  if isinstance(initial_location_center, tuple):
+    initial_location_center = np.array(initial_location_center)
+    initial_dist = np.linalg.norm(search_grid.grid_points -
+                                  initial_location_center,
+                                  axis=1)
+    eligible_grid_points = search_grid.grid_points[initial_dist <
+                                                   initial_location_radius]
+  else:
+    eligible_grid_points = search_grid.grid_points
+
+  n_search_grid_points = eligible_grid_points.shape[0]
 
   # Range for stride length
   stride_length_min, stride_length_max = stride_length_range
 
   particles = np.zeros((n_particles, 4), dtype=np.float64)
 
-  # Initial random position
+  # Initial random locations
   ss_idx = np.random.randint(n_search_grid_points, size=n_particles)
-  particles[:, 0] = search_grid.grid_points[ss_idx, 0]
-  particles[:, 1] = search_grid.grid_points[ss_idx, 1]
+  particles[:, 0] = eligible_grid_points[ss_idx, 0]
+  particles[:, 1] = eligible_grid_points[ss_idx, 1]
 
   # Initial random stride length
   particles[:, 2] = np.random.uniform(stride_length_min,
@@ -253,18 +267,18 @@ def run_apf(acce: np.ndarray,
         # No fractional update
         sensor_headings = np.radians(heading[step_idx:next_step_idx].mean())
         angle = particles[:, 3] + sensor_headings + magnetic_offset
-        particles[:, 0] = particles[:, 0] + stride_length * np.cos(angle)
-        particles[:, 1] = particles[:, 1] + stride_length * np.sin(angle)
+        particles[:, 0] = particles[:, 0] - stride_length * np.sin(angle)
+        particles[:, 1] = particles[:, 1] + stride_length * np.cos(angle)
       else:
         # Fractional update
         turn_points = [step_idx, *turn_points, next_step_idx]
         for i, j in zip(turn_points[:-1], turn_points[1:]):
           sensor_headings = np.radians(heading[i:j].mean())
           angle = particles[:, 3] + sensor_headings + magnetic_offset
-          particles[:, 0] = particles[:, 0] + stride_length * (
-              j - i) / step_freq * np.cos(angle)
-          particles[:, 1] = particles[:, 1] + stride_length * (
+          particles[:, 0] = particles[:, 0] - stride_length * (
               j - i) / step_freq * np.sin(angle)
+          particles[:, 1] = particles[:, 1] + stride_length * (
+              j - i) / step_freq * np.cos(angle)
 
       # Resampling
       # 1/ In order to replace each eliminated particle, a new particle is randomly chosen from the particle set at the previous step AND updated.

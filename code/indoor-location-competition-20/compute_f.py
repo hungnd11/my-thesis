@@ -363,10 +363,10 @@ def compute_step_heading(step_timestamps, headings):
 
 def compute_rel_positions(stride_lengths, step_headings):
   rel_positions = np.zeros((stride_lengths.shape[0], 3))
-  for i in range(0, stride_lengths.shape[0]):
-    rel_positions[i, 0] = stride_lengths[i, 0]
-    rel_positions[i, 1] = -stride_lengths[i, 1] * np.sin(step_headings[i, 1])
-    rel_positions[i, 2] = stride_lengths[i, 1] * np.cos(step_headings[i, 1])
+
+  rel_positions[:, 0] = stride_lengths[:, 0]
+  rel_positions[:, 1] = -stride_lengths[:, 1] * np.sin(step_headings[:, 1])
+  rel_positions[:, 2] = stride_lengths[:, 1] * np.cos(step_headings[:, 1])
 
   return rel_positions
 
