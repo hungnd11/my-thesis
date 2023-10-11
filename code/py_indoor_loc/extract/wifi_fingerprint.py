@@ -102,7 +102,13 @@ def read_wifi_location_df(file_path: str) -> pd.DataFrame:
 
 
 def read_wifi_location_df_list(file_path_list: list[str]) -> list[pd.DataFrame]:
-  return [read_wifi_location_df(file_path) for file_path in file_path_list]
+  frames = []
+  for file_path in file_path_list:
+    try:
+      frames.append(read_wifi_location_df(file_path))
+    except Exception as e:
+      print(e)
+  return frames
 
 
 def extract_fingerprint_df(wifi_location_df_list: list[pd.DataFrame],
