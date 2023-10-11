@@ -175,13 +175,14 @@ def create_sensor_df(path_data_collection: PathDataCollection) -> pd.DataFrame:
                          columns=["ts", "acce_x", "acce_y", "acce_z"])
   ahrs_df = pd.DataFrame(path_data_collection.ahrs,
                          columns=["ts", "ahrs_x", "ahrs_y", "ahrs_z"])
+  gyro_df = pd.DataFrame(path_data_collection.gyro,
+                         columns=["ts", "gyro_x", "gyro_y", "gyro_z"])
 
-  sensor_df = pd.merge(acce_df, magn_df, on="ts", how="outer")
-  sensor_df.ffill(inplace=True)
-
-  sensor_df = pd.merge(sensor_df, ahrs_df, on="ts", how="outer")
-  sensor_df.ffill(inplace=True)
+  sensor_df = pd.merge(acce_df, magn_df, on="ts", how="inner")
+  sensor_df = pd.merge(sensor_df, ahrs_df, on="ts", how="inner")
+  sensor_df = pd.merge(sensor_df, gyro_df, on="ts", how="inner")
 
   sensor_df["ts"] = sensor_df["ts"].astype(np.int64)
   sensor_df.sort_values("ts", ascending=True, inplace=True)
+  
   return sensor_df
